@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import cloudscraper
 import time
@@ -16,8 +17,13 @@ scraper = cloudscraper.create_scraper()  # returns a requests.Session object
 
 def extract_web3_jobs(keyword):
     job_list = []
+    #selennium 옵션
+    options = Options()
+    options.add_argument("--headless=new")  # 👈 이 옵션이 핵심
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     # 1. 크롬 드라이버 자동 설치 및 실행
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     # 2. 웹 페이지 열기
     driver.get(f"{BASE_URL}/{keyword}-jobs")
@@ -52,3 +58,5 @@ def extract_web3_jobs(keyword):
     # 6. 브라우저 종료
     driver.quit()
     return job_list
+
+
