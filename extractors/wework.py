@@ -12,36 +12,30 @@ BASE_URL = "https://weworkremotely.com/remote-jobs/search?utf8=%E2%9C%93&term="
 scraper = cloudscraper.create_scraper()  # returns a requests.Session object
 
 
-def scraper(word):
+def extract_wework_jobs(keyword):
     # 1. URL 설정
-    url_word = f"{BASE_URL}{word}"
+    url = f"{BASE_URL}{keyword}"
     # 2. 웹페이지 요청
-    response_word = requests.get(url_word, headers=HEADERS)
+    response = requests.get(url, headers=HEADERS)
 
     # 3. BeautifulSoup으로 HTML 파싱
-    soup_word = BeautifulSoup(response_word.text, "html.parser")
+    soup = BeautifulSoup(response.text, "html.parser")
 
     # 4. 채용 공고 가져오기
-    jobs_word = soup_word.find_all("li",
-                                   class_=" new-listing-container feature")
-    jobs_word += soup_word.find_all("li", class_="new-listing-container")
+    jobs_keyword = soup.find_all("li", class_=" new-listing-container feature")
+    jobs_keyword += soup.find_all("li", class_="new-listing-container")
 
     # 5. 출력
     results = []
-    upper_word = word.capitalize()
-    print(f"\n🔹 {upper_word} Jobs 🔹")
-    for job_word in jobs_word:
-        title = job_word.find(
-            "h4", class_="new-listing__header__title").text.strip()
-        company = job_word.find(
-            "p", class_="new-listing__company-name").text.strip()
-        link = job_word.find("a")["href"]
+    upper_keyword = keyword.capitalize()
+    jobs = soup.find_all("li", class_=" new-listing-container feature")
+    jobs += soup.find_all("li", class_="new-listing-container")
 
-        print("제목:", title)
-        print("회사:", company)
-        print("링크:", link)
+    for job in jobs:
+        title = job.find("h4", class_="new-listing__header__title").text.strip()
+        company = job.find("p", class_="new-listing__company-name").text.strip()
+        link = job.find("a")["href"]
 
-        print("-" * 40)
         job_info = {
             "title": title,
             "company": company,

@@ -32,10 +32,6 @@ def extract_berlin_jobs(keyword):
             "company": company,
             "link": link,
         }
-        print("제목:", title)
-        print("회사:", company)
-        print("링크:", link)
-        #print("설명:", description)
 
         results.append(job_info)
     return results
