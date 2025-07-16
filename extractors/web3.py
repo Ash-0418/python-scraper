@@ -39,7 +39,7 @@ def extract_web3_jobs(keyword):
     for title, company, link in zip(titles, compayies, links):
         title_text = title.text.strip()
         company_text = company.text.strip()
-        link_text = link.get_attribute("href").strip()
+        link_text = link.get_attribute("href").strip() # type: ignore
 
         # 💡 딕셔너리로 정리
         job_info = {

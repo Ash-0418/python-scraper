@@ -1,6 +1,8 @@
 import requests
 import cloudscraper
 from bs4 import BeautifulSoup
+from bs4.element import Tag
+
 
 HEADERS = {
     "User-Agent":
@@ -20,10 +22,9 @@ def extract_berlin_jobs(keyword):
     results = []
 
     for job in jobs:
-        job: Tag  #에러 삭제 - job이 Tag 타입임을 명시
-        title = job.find("h4").text.strip()
-        company = job.find("a", class_="bjs-jlid__b").text.strip()
-        link = job.find("a")["href"]
+        title = job.find("h4").text.strip()  # type: ignore
+        company = job.find("a", class_="bjs-jlid__b").text.strip()  # type: ignore
+        link = job.find("a")["href"]  # type: ignore
         #description = job.find("div", class_="bjs-jlid__description").text.strip()
 
         # 💡 딕셔너리로 정리
