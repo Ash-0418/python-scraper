@@ -43,6 +43,11 @@ class TestMainApp:
                 "title": "Backend Engineer", 
                 "company": "StartupXYZ",
                 "link": "/job/backend-eng"
+            },
+            {
+                "title": "Full Stack Developer",
+                "company": "BerlinTech",
+                "link": "/job/fullstack-dev"
             }
         ]
 
@@ -57,10 +62,14 @@ class TestMainApp:
     @patch('main.extract_berlin_jobs')
     def test_search_first_time(self, mock_berlin, mock_wework, mock_web3, client, mock_job_data):
         """첫 번째 검색 테스트 (캐시되지 않은 상태)"""
-        # Mock 데이터 설정
-        mock_web3.return_value = mock_job_data
-        mock_wework.return_value = []
-        mock_berlin.return_value = []
+        # Mock 데이터 설정 - 각 소스별로 다른 데이터
+        web3_jobs = [mock_job_data[0]]    # Python Developer
+        wework_jobs = [mock_job_data[1]]  # Backend Engineer  
+        berlin_jobs = [mock_job_data[2]]  # Full Stack Developer
+        
+        mock_web3.return_value = web3_jobs
+        mock_wework.return_value = wework_jobs
+        mock_berlin.return_value = berlin_jobs
         
         # 검색 요청
         response = client.get('/search?keyword=python')
@@ -74,9 +83,11 @@ class TestMainApp:
         mock_wework.assert_called_once_with('python')
         mock_berlin.assert_called_once_with('python')
         
-        # db에 결과가 저장되었는지 확인
+        # db에 합쳐진 결과가 저장되었는지 확인
         assert 'python' in main.db
-        assert main.db['python'] == mock_job_data
+        expected_combined = web3_jobs + wework_jobs + berlin_jobs
+        assert main.db['python'] == expected_combined
+        assert len(main.db['python']) == 3  # web3 1개 + wework 1개 + berlin 1개
 
     def test_search_cached_result(self, client, mock_job_data):
         """캐시된 검색 결과 테스트"""
@@ -105,7 +116,7 @@ class TestMainApp:
         """빈 키워드로 검색 시 리다이렉트 테스트"""
         response = client.get('/search?keyword=')
         
-        # 홈페이지로 리다이렉트되는지 확인
+        # 홈페이지로 리다이렉트되는지 확인 (if not keyword 조건)
         assert response.status_code == 302
         assert response.location == '/'
 
@@ -174,12 +185,17 @@ class TestMainApp:
     @patch('main.extract_berlin_jobs')
     def test_search_multiple_keywords_caching(self, mock_berlin, mock_wework, mock_web3, client, mock_job_data):
         """여러 키워드 검색 및 캐싱 테스트"""
-        # Mock 설정
-        mock_web3.return_value = mock_job_data
-        mock_wework.return_value = []
-        mock_berlin.return_value = []
+        # Mock 설정 - 각 소스별로 데이터 분리
+        web3_jobs = [mock_job_data[0]]   # Python Developer
+        wework_jobs = [mock_job_data[1]] # Backend Engineer
+        berlin_jobs = [mock_job_data[2]] # Full Stack Developer
+        
+        mock_web3.return_value = web3_jobs
+        mock_wework.return_value = wework_jobs
+        mock_berlin.return_value = berlin_jobs
         
         keywords = ['python', 'javascript', 'react']
+        expected_combined = web3_jobs + wework_jobs + berlin_jobs
         
         for keyword in keywords:
             response = client.get(f'/search?keyword={keyword}')
@@ -190,13 +206,14 @@ class TestMainApp:
         # 모든 키워드가 캐시되었는지 확인
         assert len(main.db) == 3
         for keyword in keywords:
-            assert main.db[keyword] == mock_job_data
+            assert main.db[keyword] == expected_combined
+            assert len(main.db[keyword]) == 3  # web3 1개 + wework 1개 + berlin 1개
 
     @patch('main.extract_web3_jobs')
     @patch('main.extract_wework_jobs')
     @patch('main.extract_berlin_jobs')
-    def test_search_only_uses_web3_results(self, mock_berlin, mock_wework, mock_web3, client):
-        """search 함수가 web3 결과만 사용하는지 테스트"""
+    def test_search_combines_all_results(self, mock_berlin, mock_wework, mock_web3, client):
+        """search 함수가 web3 + wework + berlin 모든 결과를 합치는지 테스트"""
         # 각각 다른 Mock 데이터 설정
         web3_data = [{"title": "Web3 Job", "company": "Web3 Corp", "link": "/web3"}]
         wework_data = [{"title": "WeWork Job", "company": "WeWork Corp", "link": "/wework"}]
@@ -208,10 +225,16 @@ class TestMainApp:
         
         response = client.get('/search?keyword=test')
         
-        # web3 결과만 저장되었는지 확인 (코드에서 jobs = web3로 설정됨)
-        assert main.db['test'] == web3_data
-        assert main.db['test'] != wework_data
-        assert main.db['test'] != berlin_data
+        # 모든 결과가 합쳐져서 저장되었는지 확인 (jobs = web3 + wwr + berlin)
+        expected_combined_data = web3_data + wework_data + berlin_data
+        assert main.db['test'] == expected_combined_data
+        assert len(main.db['test']) == 3  # 3개 소스에서 각각 1개씩 총 3개
+        
+        # 각 소스의 데이터가 모두 포함되어 있는지 확인
+        stored_jobs = main.db['test']
+        assert any(job['title'] == 'Web3 Job' for job in stored_jobs)
+        assert any(job['title'] == 'WeWork Job' for job in stored_jobs)
+        assert any(job['title'] == 'Berlin Job' for job in stored_jobs)
 
     def test_db_state_isolation_between_tests(self, client):
         """테스트 간 db 상태 격리 확인"""
@@ -227,9 +250,14 @@ class TestMainApp:
     @patch('main.extract_berlin_jobs')
     def test_search_with_special_characters(self, mock_berlin, mock_wework, mock_web3, client, mock_job_data):
         """특수문자가 포함된 키워드 검색 테스트"""
-        mock_web3.return_value = mock_job_data
-        mock_wework.return_value = []
-        mock_berlin.return_value = []
+        # Mock 설정 - 각 소스별로 데이터 분리
+        web3_jobs = [mock_job_data[0]]   # Python Developer
+        wework_jobs = [mock_job_data[1]] # Backend Engineer
+        berlin_jobs = [mock_job_data[2]] # Full Stack Developer
+        
+        mock_web3.return_value = web3_jobs
+        mock_wework.return_value = wework_jobs
+        mock_berlin.return_value = berlin_jobs
         
         # URL 인코딩이 필요한 키워드
         keyword = 'machine learning'
@@ -238,7 +266,137 @@ class TestMainApp:
         assert response.status_code == 200
         assert keyword in main.db
         
+        # 합쳐진 결과가 저장되었는지 확인
+        expected_combined = web3_jobs + wework_jobs + berlin_jobs
+        assert main.db[keyword] == expected_combined
+        
         # extractor가 올바른 키워드로 호출되었는지 확인
         mock_web3.assert_called_once_with(keyword)
         mock_wework.assert_called_once_with(keyword)
-        mock_berlin.assert_called_once_with(keyword) 
+        mock_berlin.assert_called_once_with(keyword)
+
+    @patch('main.extract_web3_jobs')
+    @patch('main.extract_wework_jobs')
+    @patch('main.extract_berlin_jobs')
+    def test_search_different_result_counts(self, mock_berlin, mock_wework, mock_web3, client):
+        """각 소스에서 다른 개수의 결과가 나올 때 올바르게 합쳐지는지 테스트"""
+        # Mock 데이터 설정 - 각 소스별로 다른 개수의 결과
+        web3_jobs = [
+            {"title": "Web3 Job 1", "company": "Web3 Corp 1", "link": "/web3-1"},
+            {"title": "Web3 Job 2", "company": "Web3 Corp 2", "link": "/web3-2"}
+        ]
+        wework_jobs = [
+            {"title": "WeWork Job 1", "company": "WeWork Corp 1", "link": "/wework-1"}
+        ]
+        berlin_jobs = [
+            {"title": "Berlin Job 1", "company": "Berlin Corp 1", "link": "/berlin-1"},
+            {"title": "Berlin Job 2", "company": "Berlin Corp 2", "link": "/berlin-2"},
+            {"title": "Berlin Job 3", "company": "Berlin Corp 3", "link": "/berlin-3"}
+        ]
+        
+        mock_web3.return_value = web3_jobs
+        mock_wework.return_value = wework_jobs
+        mock_berlin.return_value = berlin_jobs
+        
+        response = client.get('/search?keyword=developer')
+        
+        # 검증
+        assert response.status_code == 200
+        assert 'developer' in main.db
+        
+        # 모든 결과가 올바른 순서로 합쳐졌는지 확인
+        combined_jobs = main.db['developer']
+        assert len(combined_jobs) == 6  # 2 + 1 + 3 = 6
+        
+        # 순서 확인: web3 → wework → berlin
+        assert combined_jobs[0]['title'] == 'Web3 Job 1'
+        assert combined_jobs[1]['title'] == 'Web3 Job 2'
+        assert combined_jobs[2]['title'] == 'WeWork Job 1'
+        assert combined_jobs[3]['title'] == 'Berlin Job 1'
+        assert combined_jobs[4]['title'] == 'Berlin Job 2'
+        assert combined_jobs[5]['title'] == 'Berlin Job 3'
+
+    @patch('main.extract_web3_jobs')
+    @patch('main.extract_wework_jobs')
+    @patch('main.extract_berlin_jobs')
+    def test_search_partial_extractor_failure(self, mock_berlin, mock_wework, mock_web3, client):
+        """일부 extractor에서만 에러가 발생할 때 테스트"""
+        # Mock 설정 - web3에서만 에러 발생
+        mock_web3.side_effect = Exception("Web3 API error")
+        mock_wework.return_value = [{"title": "WeWork Job", "company": "WeWork Corp", "link": "/wework"}]
+        mock_berlin.return_value = [{"title": "Berlin Job", "company": "Berlin Corp", "link": "/berlin"}]
+        
+        # 에러 발생으로 500 응답이 와야 함
+        response = client.get('/search?keyword=partial_error')
+        assert response.status_code == 500
+
+    @patch('main.extract_web3_jobs')
+    @patch('main.extract_wework_jobs')
+    @patch('main.extract_berlin_jobs')
+    def test_search_all_sources_empty(self, mock_berlin, mock_wework, mock_web3, client):
+        """모든 소스에서 빈 결과가 나올 때 테스트"""
+        # 모든 Mock이 빈 리스트 반환
+        mock_web3.return_value = []
+        mock_wework.return_value = []
+        mock_berlin.return_value = []
+        
+        response = client.get('/search?keyword=nonexistent')
+        
+        # 검증
+        assert response.status_code == 200
+        assert 'nonexistent' in main.db
+        assert main.db['nonexistent'] == []  # 빈 리스트
+        
+        # 모든 extractor가 호출되었는지 확인
+        mock_web3.assert_called_once_with('nonexistent')
+        mock_wework.assert_called_once_with('nonexistent')
+        mock_berlin.assert_called_once_with('nonexistent')
+
+    @patch('main.extract_web3_jobs')
+    @patch('main.extract_wework_jobs')
+    @patch('main.extract_berlin_jobs')
+    def test_search_mixed_empty_and_results(self, mock_berlin, mock_wework, mock_web3, client, mock_job_data):
+        """일부 소스는 빈 결과, 일부는 데이터가 있을 때 테스트"""
+        # Mock 설정 - 일부만 결과 있음
+        mock_web3.return_value = [mock_job_data[0]]  # Python Developer
+        mock_wework.return_value = []  # 빈 결과
+        mock_berlin.return_value = [mock_job_data[2]]  # Full Stack Developer
+        
+        response = client.get('/search?keyword=mixed')
+        
+        # 검증
+        assert response.status_code == 200
+        assert 'mixed' in main.db
+        
+        # 빈 결과가 있어도 올바르게 합쳐지는지 확인
+        expected = [mock_job_data[0]] + [] + [mock_job_data[2]]
+        assert main.db['mixed'] == expected
+        assert len(main.db['mixed']) == 2  # web3 1개 + wework 0개 + berlin 1개
+        
+        # 결과 내용 확인
+        stored_jobs = main.db['mixed']
+        assert stored_jobs[0]['title'] == 'Python Developer'
+        assert stored_jobs[1]['title'] == 'Full Stack Developer'
+
+    @patch('main.extract_web3_jobs')
+    @patch('main.extract_wework_jobs')
+    @patch('main.extract_berlin_jobs')
+    def test_search_duplicate_results_from_different_sources(self, mock_berlin, mock_wework, mock_web3, client):
+        """다른 소스에서 중복된 결과가 나올 때도 모두 포함되는지 테스트"""
+        # 의도적으로 중복된 job 데이터 설정
+        duplicate_job = {"title": "Full Stack Developer", "company": "Tech Company", "link": "/job/fullstack"}
+        
+        mock_web3.return_value = [duplicate_job]
+        mock_wework.return_value = [duplicate_job]  # 동일한 job
+        mock_berlin.return_value = [duplicate_job]  # 동일한 job
+        
+        response = client.get('/search?keyword=fullstack')
+        
+        # 검증 - 중복 제거 없이 모든 결과 포함
+        assert response.status_code == 200
+        assert 'fullstack' in main.db
+        assert len(main.db['fullstack']) == 3  # 중복이어도 3개 모두 포함
+        
+        # 모든 결과가 동일한지 확인
+        for job in main.db['fullstack']:
+            assert job == duplicate_job 
