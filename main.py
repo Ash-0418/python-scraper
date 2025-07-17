@@ -16,7 +16,7 @@ def home():
 @app.route("/search")
 def search():
     keyword = request.args.get("keyword")
-    if keyword == None:
+    if not keyword:
         return redirect("/")
     if keyword in db:
         jobs = db[keyword]
@@ -24,7 +24,7 @@ def search():
         web3 = extract_web3_jobs(keyword)
         wwr = extract_wework_jobs(keyword)
         berlin = extract_berlin_jobs(keyword)
-        jobs = web3
+        jobs = web3 + wwr + berlin
         db[keyword] = jobs
     return render_template("search.html", keyword=keyword, jobs=jobs)
 
