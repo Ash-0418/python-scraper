@@ -40,4 +40,6 @@ def export():
     return send_file(f"{keyword}.csv", as_attachment=True)
 
 
-app.run("0.0.0.0", port=5001, debug=True)
+#pytest 를 위해 수정, 이 파일이 직접 실행될 때만 실행
+if __name__ == "__main__":
+    app.run("0.0.0.0", port=5001, debug=True)
