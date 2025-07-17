@@ -21,11 +21,15 @@ def search():
     if keyword in db:
         jobs = db[keyword]
     else:
-        web3 = extract_web3_jobs(keyword)
-        wwr = extract_wework_jobs(keyword)
-        berlin = extract_berlin_jobs(keyword)
-        jobs = web3 + wwr + berlin
-        db[keyword] = jobs
+        try:
+            web3 = extract_web3_jobs(keyword)
+            wwr = extract_wework_jobs(keyword)
+            berlin = extract_berlin_jobs(keyword)
+            jobs = web3 + wwr + berlin
+            db[keyword] = jobs
+        except Exception as e:
+            print(f"error: {e}")
+            return "Internal Server Error", 500 
     return render_template("search.html", keyword=keyword, jobs=jobs)
 
 
