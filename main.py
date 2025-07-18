@@ -16,16 +16,20 @@ def home():
 @app.route("/search")
 def search():
     keyword = request.args.get("keyword")
-    if keyword == None:
+    if not keyword:
         return redirect("/")
     if keyword in db:
         jobs = db[keyword]
     else:
-        web3 = extract_web3_jobs(keyword)
-        wwr = extract_wework_jobs(keyword)
-        berlin = extract_berlin_jobs(keyword)
-        jobs = web3
-        db[keyword] = jobs
+        try:
+            web3 = extract_web3_jobs(keyword)
+            wwr = extract_wework_jobs(keyword)
+            berlin = extract_berlin_jobs(keyword)
+            jobs = web3 + wwr + berlin
+            db[keyword] = jobs
+        except Exception as e:
+            print(f"error: {e}")
+            return "Internal Server Error", 500 
     return render_template("search.html", keyword=keyword, jobs=jobs)
 
 
@@ -40,4 +44,6 @@ def export():
     return send_file(f"{keyword}.csv", as_attachment=True)
 
 
-app.run("0.0.0.0", port=5001, debug=True)
+#pytest 를 위해 수정, 이 파일이 직접 실행될 때만 실행
+if __name__ == "__main__":
+    app.run("0.0.0.0", port=5001, debug=True)

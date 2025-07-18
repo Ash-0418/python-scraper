@@ -7,7 +7,7 @@ HEADERS = {
     "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
 }
-BASE_URL = "https://weworkremotely.com/remote-jobs/search?utf8=%E2%9C%93&term="
+BASE_URL = "https://weworkremotely.com/remote-jobs/search?term="
 
 scraper = cloudscraper.create_scraper()  # returns a requests.Session object
 
@@ -32,9 +32,9 @@ def extract_wework_jobs(keyword):
     jobs += soup.find_all("li", class_="new-listing-container")
 
     for job in jobs:
-        title = job.find("h4", class_="new-listing__header__title").text.strip()
-        company = job.find("p", class_="new-listing__company-name").text.strip()
-        link = job.find("a")["href"]
+        title = job.find("h4", class_="new-listing__header__title").text.strip() #type: ignore
+        company = job.find("p", class_="new-listing__company-name").text.strip() #type: ignore
+        link = job.find("a")["href"] #type: ignore  
 
         job_info = {
             "title": title,
